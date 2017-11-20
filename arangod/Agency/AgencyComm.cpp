@@ -35,6 +35,7 @@
 #include <velocypack/Sink.h>
 #include <velocypack/velocypack-aliases.h>
 
+#include "Basics/ConditionLocker.h"
 #include "Basics/ReadLocker.h"
 #include "Basics/StringBuffer.h"
 #include "Basics/StringUtils.h"
@@ -49,6 +50,7 @@
 #include "Rest/HttpRequest.h"
 #include "Rest/HttpResponse.h"
 #include "RestServer/FeatureCacheFeature.h"
+#include "SimpleHttpClient/Destination.h"
 #include "SimpleHttpClient/GeneralClientConnection.h"
 #include "SimpleHttpClient/SimpleHttpClient.h"
 #include "SimpleHttpClient/SimpleHttpResult.h"
@@ -60,6 +62,7 @@
 using namespace arangodb;
 using namespace arangodb::application_features;
 using namespace arangodb::httpclient;
+using namespace arangodb::communicator;
 using namespace arangodb::rest;
 
 #ifdef DEBUG_SYNC_REPLICATION
@@ -1340,7 +1343,7 @@ AgencyCommResult AgencyComm::sendWithFailover(
   std::string endpoint;
   std::unique_ptr<GeneralClientConnection> connection =
     AgencyCommManager::MANAGER->acquire(endpoint);
-
+  
   AgencyCommResult result;
   std::string url;
 
@@ -1578,9 +1581,8 @@ AgencyCommResult AgencyComm::sendWithFailover(
 
 AgencyCommResult AgencyComm::send(
     arangodb::httpclient::GeneralClientConnection* connection,
-    arangodb::rest::RequestType method, double timeout, std::string const& url,
+    arangodb::rest::RequestType method, double timeout, std::string const& path,
     std::string const& body, std::string const& clientId) {
-  TRI_ASSERT(connection != nullptr);
 
   if (method == arangodb::rest::RequestType::GET ||
       method == arangodb::rest::RequestType::HEAD ||
@@ -1588,7 +1590,7 @@ AgencyCommResult AgencyComm::send(
     TRI_ASSERT(body.empty());
   }
 
-  TRI_ASSERT(!url.empty());
+  TRI_ASSERT(!path.empty());
 
   AgencyCommResult result;
 
@@ -1599,67 +1601,90 @@ AgencyCommResult AgencyComm::send(
   LOG_TOPIC(TRACE, Logger::AGENCYCOMM)
       << "sending " << arangodb::HttpRequest::translateMethod(method)
       << " request to agency at endpoint '"
-      << connection->getEndpoint()->specification() << "', url '" << url
+      << connection->getEndpoint()->specification() << "', url '" << path
       << "': " << body;
 
-  arangodb::httpclient::SimpleHttpClientParams params(timeout, false);
-  TRI_ASSERT(AuthenticationFeature::INSTANCE != nullptr);
-  params.setJwt(AuthenticationFeature::INSTANCE->jwtToken());
-  params.keepConnectionOnDestruction(true);
-  arangodb::httpclient::SimpleHttpClient client(connection, params);
+  std::string url = Destination::endpointToScheme(connection->getEndpoint()->specification());
+  url += path;
+
+  Destination destination { url };
 
   // set up headers
   std::unordered_map<std::string, std::string> headers;
+  auto auth = FeatureCacheFeature::instance()->authenticationFeature();
+  TRI_ASSERT(auth != nullptr);
+  if (auth->isActive()) {
+    headers["Authorization"] = "bearer " + auth->jwtToken();
+  }
 
   if (method == arangodb::rest::RequestType::POST) {
     // the agency needs this content-type for the body
     headers["content-type"] = "application/json";
   }
 
-  // send the actual request
-  std::unique_ptr<arangodb::httpclient::SimpleHttpResult> response(
-      client.request(method, url, body.c_str(), body.size(), headers));
+  auto request = std::unique_ptr<HttpRequest>(HttpRequest::createHttpRequest(rest::ContentType::JSON, body.c_str(), body.size(), headers));
+  request->setRequestType(method);
 
-  if (response == nullptr) {
+  Options options;
+  options.requestTimeout = timeout;
+
+  arangodb::basics::ConditionVariable cv;
+  bool wasSignaled = false;
+  std::unique_ptr<GeneralResponse> response;
+
+  Callbacks callbacks;
+  callbacks._onError = [&cv, &wasSignaled, &response](int errorCode, std::unique_ptr<GeneralResponse> _response) {
+    CONDITION_LOCKER(isen, cv);
+    response = std::move(_response);
+    wasSignaled = true;
+    cv.signal();
+  };
+  callbacks._onSuccess = [&cv, &wasSignaled, &response](std::unique_ptr<GeneralResponse> _response) {
+    CONDITION_LOCKER(isen, cv);
+    response = std::move(_response);
+    wasSignaled = true;
+    cv.signal();
+  };
+  CONDITION_LOCKER(isen, cv);
+  ClusterComm::instance()->communicator()->addRequest(destination, std::move(request), callbacks, options);
+
+  while (!wasSignaled) {
+    cv.wait(100000);
+  }
+
+  if (!response) {
     result._message = "could not send request to agency";
     LOG_TOPIC(TRACE, Logger::AGENCYCOMM) << "could not send request to agency";
-
     return result;
   }
 
-  result._sent = response->haveSentRequestFully();
-
-  if (!response->isComplete()) {
-    result._message = "sending request to agency failed";
-    LOG_TOPIC(TRACE, Logger::AGENCYCOMM) << "sending request to agency failed";
-
-    return result;
-  }
-
+  result._sent = true;
   result._connected = true;
 
-  if (response->getHttpReturnCode() ==
-      (int)arangodb::rest::ResponseCode::TEMPORARY_REDIRECT) {
+  if (response->responseCode() == arangodb::rest::ResponseCode::TEMPORARY_REDIRECT) {
     // temporary redirect. now save location header
-
-    bool found = false;
-    result._location = response->getHeaderField(StaticStrings::Location, found);
-
+    auto headers = response->headers();
+    auto location = headers.find(StaticStrings::Location);
+    if (location == headers.end()) {
+      // a 307 without a location header does not make any sense
+      result._message = "invalid agency response (header missing)";
+      return result;
+    }
+    result._location = location->second;
     LOG_TOPIC(TRACE, Logger::AGENCYCOMM) << "redirecting to location: '"
                                          << result._location << "'";
 
-    if (!found) {
-      // a 307 without a location header does not make any sense
-      result._message = "invalid agency response (header missing)";
-
-      return result;
-    }
+    return result;
   }
 
-  result._message = response->getHttpReturnMessage();
-  result._statusCode = response->getHttpReturnCode();
+  result._message = GeneralResponse::responseString(response->responseCode());
+  result._statusCode = (int)response->responseCode();
 
-  basics::StringBuffer& sb = response->getBody();
+  HttpResponse* httpResponse = dynamic_cast<HttpResponse*>(response.get());
+
+  TRI_ASSERT(httpResponse != nullptr);
+
+  basics::StringBuffer& sb = httpResponse->body();
   result._body = std::string(sb.c_str(), sb.length());
   
   LOG_TOPIC(TRACE, Logger::AGENCYCOMM)

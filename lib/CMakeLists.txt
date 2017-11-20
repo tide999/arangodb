@@ -212,6 +212,7 @@ add_library(${LIB_ARANGO} STATIC
   SimpleHttpClient/ClientConnection.cpp
   SimpleHttpClient/Communicator.cpp
   SimpleHttpClient/ConnectionManager.cpp
+  SimpleHttpClient/Destination.cpp
   SimpleHttpClient/GeneralClientConnection.cpp
   SimpleHttpClient/SimpleHttpClient.cpp
   SimpleHttpClient/SimpleHttpResult.cpp

@@ -1124,12 +1124,8 @@ size_t ClusterComm::performSingleRequest(
 }
 
 communicator::Destination ClusterComm::createCommunicatorDestination(std::string const& endpoint, std::string const& path) {
-  std::string httpEndpoint;
-  if (endpoint.substr(0, 6) == "tcp://") {
-    httpEndpoint = "http://" + endpoint.substr(6);
-  } else if (endpoint.substr(0, 6) == "ssl://") {
-    httpEndpoint = "https://" + endpoint.substr(6);
-  }
+  std::string httpEndpoint = Destination::endpointToScheme(endpoint);
+
   httpEndpoint += path;
   return communicator::Destination{httpEndpoint};
 }

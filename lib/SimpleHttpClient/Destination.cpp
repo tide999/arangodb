@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 /// DISCLAIMER
 ///
-/// Copyright 2016 ArangoDB GmbH, Cologne, Germany
+/// Copyright 2017 ArangoDB GmbH, Cologne, Germany
 ///
 /// Licensed under the Apache License, Version 2.0 (the "License");
 /// you may not use this file except in compliance with the License.
@@ -18,33 +18,23 @@
 /// Copyright holder is ArangoDB GmbH, Cologne, Germany
 ///
 /// @author Andreas Streichardt
-/// @author Frank Celler
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef ARANGODB_SIMPLE_HTTP_CLIENT_DESTINATION_H
-#define ARANGODB_SIMPLE_HTTP_CLIENT_DESTINATION_H 1
+#include "SimpleHttpClient/Destination.h"
 
-#include "Basics/Common.h"
+using namespace arangodb::communicator;
 
-namespace arangodb {
-class Endpoint;
-
-namespace communicator {
-class Destination {
- public:
-  explicit Destination(std::string const& url) : _url(url) {}
-
- public:
-  // create a http url from the arango tcp+http stuff :S
-  static std::string endpointToScheme(std::string const& endpoint);
-
- public:
-  std::string const& url() const { return _url; }
-
- private:
-  std::string const _url;
-};
+// create a http url from the arango tcp+http stuff :S
+std::string Destination::endpointToScheme(std::string const& endpoint) {
+  if (endpoint.substr(0, 6) == "tcp://") {
+    return "http://" + endpoint.substr(6);
+  } else if (endpoint.substr(0, 11) == "http+tcp://") {
+    return "http://" + endpoint.substr(11);
+  } else if (endpoint.substr(0, 11) == "http+ssl://") {
+    return "https://" + endpoint.substr(11);
+  } else if (endpoint.substr(0, 6) == "ssl://") {
+    return "https://" + endpoint.substr(6);
+  } else {
+    return endpoint;
+  }
 }
-}
-
-#endif
