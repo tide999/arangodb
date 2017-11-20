@@ -674,7 +674,7 @@ def setBuildsAndTests() {
             "test-mac-community-user-singleserver-rocksdb" : true,
             "test-mac-enterprise-user-cluster-rocksdb" : true,
             "test-windows-community-user-singleserver-rocksdb" : true,
-            "test-windows-mac-enterprise-user-cluster-rocksdb" : true,
+            "test-windows-enterprise-user-cluster-rocksdb" : true,
 
             // OS EDITION MAINTAINER ENGINE TYPE
             "resilience-linux-community-user-rocksdb-single" : true,
