@@ -528,33 +528,26 @@ class AgencyCommManager {
   bool start();
   void stop();
 
-  // Get a connection to the current endpoint, which will be filled in to
-  // `endpoint`, if that is empty. Otherwise, a connection to the non-empty
-  // endpoint `endpoint` is returned, regardless of what is the current
-  // endpoint.
-  std::unique_ptr<httpclient::GeneralClientConnection> acquire(
-      std::string& endpoint);
+  // acquire current endpoint
+  std::string acquire();
 
   // Returns a connection to the manager. `endpoint` must be the string
   // description under which it was `acquire`d. Call this if you are done
   // using the connection and no error occurred.
-  void release(std::unique_ptr<httpclient::GeneralClientConnection>,
-               std::string const& endpoint);
+  void release(std::string const& endpoint);
 
   // Returns a connection to the manager. `endpoint` must be the string
   // description under which it was `acquire`d. Call this if you are done
   // using the connection and an error occurred. The connection object will
   // be destroyed and the current endpoint will be rotated.
-  void failed(std::unique_ptr<httpclient::GeneralClientConnection>,
-              std::string const& endpoint);
+  void failed(std::string const& endpoint);
 
   // If a request receives a redirect HTTP 307, one should call the following
   // method to make the new location the current one. The method returns the
   // new endpoint specification. If anything goes wrong (for example, some
   // other thread has in the meantime changed the active endpoint), an empty
   // string is returned, which means that one has to acquire a new endpoint.
-  std::string redirect(std::unique_ptr<httpclient::GeneralClientConnection>,
-                       std::string const& endpoint, std::string const& location,
+  std::string redirect(std::string const& endpoint, std::string const& location,
                        std::string& url);
 
   void addEndpoint(std::string const&);
@@ -566,15 +559,7 @@ class AgencyCommManager {
  private:
 
   // caller must hold _lock
-  void failedNonLocking(std::unique_ptr<httpclient::GeneralClientConnection>,
-              std::string const& endpoint);
-
-  // caller must hold lock
-  void releaseNonLocking(std::unique_ptr<httpclient::GeneralClientConnection>,
-                         std::string const& endpoint);
-
-  // caller must hold _lock
-  std::unique_ptr<httpclient::GeneralClientConnection> createNewConnection();
+  void failedNonLocking(std::string const& endpoint);
 
   // caller must hold _lock
   void switchCurrentEndpoint();
@@ -592,17 +577,6 @@ class AgencyCommManager {
   // with the communication with the front one, we move it to the back and
   // try the next.
   std::deque<std::string> _endpoints;
-
-  // In the following map we cache GeneralClientConnections to the above
-  // endpoints. One can acquire one of them for use, in which case it is
-  // removed from the corresponding vector. If one calls `release` on it, 
-  // it is sent back to the ununsed vector. If an error occurs one
-  // should call `failed` such that the manager can switch to a new
-  // current endpoint. In case a redirect is received, one has to inform
-  // the manager by calling `redirect`.
-  std::unordered_map<std::string,
-           std::vector<std::unique_ptr<httpclient::GeneralClientConnection>>>
-  _unusedConnections;
 };
 
 // -----------------------------------------------------------------------------
@@ -693,7 +667,7 @@ class AgencyComm {
 
   bool unlock(std::string const&, arangodb::velocypack::Slice const&, double);
 
-  AgencyCommResult send(httpclient::GeneralClientConnection*, rest::RequestType,
+  AgencyCommResult send(std::string const& endpoint, rest::RequestType,
                         double, std::string const&, std::string const&,
                         std::string const& clientId = std::string());
 
