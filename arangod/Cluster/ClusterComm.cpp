@@ -231,8 +231,6 @@ ClusterComm::ClusterComm()
 
     _jwtAuthorization = "bearer " + auth->jwtToken();
   }
-
-  _communicator = std::make_shared<communicator::Communicator>();
 }
 
 /// @brief Unit test constructor

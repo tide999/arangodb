@@ -114,6 +114,7 @@ add_library(${LIB_ARANGO} STATIC
   ApplicationFeatures/ConfigFeature.cpp
   ApplicationFeatures/EnvironmentFeature.cpp
   ApplicationFeatures/GreetingsFeature.cpp
+  ApplicationFeatures/HttpCommunicationFeature.cpp
   ApplicationFeatures/JemallocFeature.cpp
   ApplicationFeatures/LanguageFeature.cpp
   ApplicationFeatures/MaxMapCountFeature.cpp
@@ -213,6 +214,7 @@ add_library(${LIB_ARANGO} STATIC
   SimpleHttpClient/Communicator.cpp
   SimpleHttpClient/ConnectionManager.cpp
   SimpleHttpClient/GeneralClientConnection.cpp
+  SimpleHttpClient/HttpCommunicationThread.cpp
   SimpleHttpClient/SimpleHttpClient.cpp
   SimpleHttpClient/SimpleHttpResult.cpp
   SimpleHttpClient/SslClientConnection.cpp
