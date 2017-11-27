@@ -204,8 +204,10 @@ void HeartbeatThread::run() {
 
   if (ServerState::instance()->isCoordinator(role)) {
     runCoordinator();
+    abortRequestsToFailedServers();
   } else if (ServerState::instance()->isDBServer(role)) {
     runDBServer();
+    abortRequestsToFailedServers();
   } else if (ServerState::instance()->isSingleServer(role)) {
     runSingleServer();
   } else {
@@ -1206,5 +1208,23 @@ void HeartbeatThread::updateAgentPool(VPackSlice const& agentPool) {
     _agency.updateEndpoints(agentPool);
   } else {
     LOG_TOPIC(TRACE, arangodb::Logger::FIXME) << "Cannot find an agency persisted in RAFT 8|";
+  }
+}
+
+void HeartbeatThread::abortRequestsToFailedServers() {
+  auto cc = ClusterComm::instance();
+  if (cc != nullptr) {
+    return;
+  }
+  ClusterInfo* ci = ClusterInfo::instance();
+  if (ci != nullptr) {
+    return;
+  }
+  auto failedServers = ci->getFailedServers();
+  if (failedServers.size() > 0) {
+    auto ticketIds = cc->activeServerTickets(failedServers);
+    for (auto const& ticketId: ticketIds) {
+      cc->communicator()->abortRequest(ticketId);
+    }
   }
 }

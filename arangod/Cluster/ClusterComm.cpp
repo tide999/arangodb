@@ -220,8 +220,7 @@ char const* ClusterCommResult::stringifyStatus(ClusterCommOpStatus status) {
 ////////////////////////////////////////////////////////////////////////////////
 
 ClusterComm::ClusterComm()
-    : _backgroundThread(nullptr),
-      _logConnectionErrors(false),
+    : _logConnectionErrors(false),
       _authenticationEnabled(false),
       _jwtAuthorization("") {
   auto auth = FeatureCacheFeature::instance()->authenticationFeature();
@@ -235,8 +234,7 @@ ClusterComm::ClusterComm()
 
 /// @brief Unit test constructor
 ClusterComm::ClusterComm(bool ignored)
-    : _backgroundThread(nullptr),
-      _logConnectionErrors(false),
+    : _logConnectionErrors(false),
       _authenticationEnabled(false),
       _jwtAuthorization("") {
 
@@ -249,12 +247,6 @@ ClusterComm::ClusterComm(bool ignored)
 ////////////////////////////////////////////////////////////////////////////////
 
 ClusterComm::~ClusterComm() {
-  if (_backgroundThread != nullptr) {
-    _backgroundThread->beginShutdown();
-    delete _backgroundThread;
-    _backgroundThread = nullptr;
-  }
-
   cleanupAllQueues();
 }
 
@@ -300,9 +292,9 @@ std::shared_ptr<ClusterComm> ClusterComm::instance() {
 /// @brief initialize the cluster comm singleton object
 ////////////////////////////////////////////////////////////////////////////////
 
-void ClusterComm::initialize() {
+void ClusterComm::initialize(std::shared_ptr<communicator::Communicator> communicator) {
   auto i = instance();   // this will create the static instance
-  i->startBackgroundThread();
+  i->_communicator = communicator;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -312,20 +304,6 @@ void ClusterComm::initialize() {
 void ClusterComm::cleanup() {
   _theInstance.reset();    // no more operations will be started, but running
                            // ones have their copy of the shared_ptr
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// @brief start the communication background thread
-////////////////////////////////////////////////////////////////////////////////
-
-void ClusterComm::startBackgroundThread() {
-  _backgroundThread = new ClusterCommThread();
-
-  if (!_backgroundThread->start()) {
-    LOG_TOPIC(FATAL, Logger::CLUSTER)
-      << "ClusterComm background thread does not work";
-    FATAL_ERROR_EXIT();
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -840,28 +818,6 @@ void ClusterComm::cleanupAllQueues() {
   }
 }
 
-ClusterCommThread::ClusterCommThread() : Thread("ClusterComm"), _cc(nullptr) {
-  _cc = ClusterComm::instance().get();
-}
-
-ClusterCommThread::~ClusterCommThread() { shutdown(); }
-
-////////////////////////////////////////////////////////////////////////////////
-/// @brief begin shutdown sequence
-////////////////////////////////////////////////////////////////////////////////
-
-void ClusterCommThread::beginShutdown() {
-  // Note that this is called from the destructor of the ClusterComm singleton
-  // object. This means that our pointer _cc is still valid and the condition
-  // variable in it is still OK. However, this method is called from a
-  // different thread than the ClusterCommThread. Therefore we can still
-  // use the condition variable to wake up the ClusterCommThread.
-  Thread::beginShutdown();
-
-  CONDITION_LOCKER(guard, _cc->somethingToSend);
-  guard.signal();
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 /// @brief this method performs the given requests described by the vector
 /// of ClusterCommRequest structs in the following way: all requests are
@@ -1222,43 +1178,4 @@ std::vector<communicator::Ticket> ClusterComm::activeServerTickets(std::vector<s
 void ClusterComm::disable() {
    _communicator->disable();
    _communicator->abortRequests();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// @brief ClusterComm main loop
-////////////////////////////////////////////////////////////////////////////////
-
-void ClusterCommThread::abortRequestsToFailedServers() {
-  ClusterInfo* ci = ClusterInfo::instance();
-  auto failedServers = ci->getFailedServers();
-  if (failedServers.size() > 0) {
-    auto ticketIds = _cc->activeServerTickets(failedServers);
-    for (auto const& ticketId: ticketIds) {
-      _cc->communicator()->abortRequest(ticketId);
-    }
-  }
-}
-
-void ClusterCommThread::run() {
-  LOG_TOPIC(DEBUG, Logger::CLUSTER) << "starting ClusterComm thread";
-
-  while (!isStopping()) {
-    try {
-      abortRequestsToFailedServers();
-      _cc->communicator()->work_once();
-      _cc->communicator()->wait();
-      LOG_TOPIC(TRACE, Logger::CLUSTER) << "done waiting in ClusterCommThread";
-    } catch (std::exception const& ex) {
-      LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "caught exception in ClusterCommThread: " << ex.what();
-    } catch (...) {
-      LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "caught unknown exception in ClusterCommThread";
-    }
-  }
-  _cc->communicator()->abortRequests();
-  LOG_TOPIC(DEBUG, Logger::CLUSTER) << "waiting for curl to stop remaining handles";
-  while (_cc->communicator()->work_once() > 0) {
-    usleep(10);
-  }
-
-  LOG_TOPIC(DEBUG, Logger::CLUSTER) << "stopped ClusterComm thread";
 }

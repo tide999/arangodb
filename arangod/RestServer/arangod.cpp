@@ -32,6 +32,7 @@
 #include "ApplicationFeatures/DaemonFeature.h"
 #include "ApplicationFeatures/EnvironmentFeature.h"
 #include "ApplicationFeatures/GreetingsFeature.h"
+#include "ApplicationFeatures/HttpCommunicationFeature.h"
 #include "ApplicationFeatures/JemallocFeature.h"
 #include "ApplicationFeatures/LanguageFeature.h"
 #include "ApplicationFeatures/MaxMapCountFeature.h"
@@ -154,6 +155,7 @@ static int runServer(int argc, char** argv, ArangoGlobalContext &context) {
     server.addFeature(new FrontendFeature(&server));
     server.addFeature(new GeneralServerFeature(&server));
     server.addFeature(new GreetingsFeature(&server));
+    server.addFeature(new HttpCommunicationFeature(&server));
     server.addFeature(new InitDatabaseFeature(&server, nonServerFeatures));
     server.addFeature(new JemallocFeature(&server));
     server.addFeature(new LanguageFeature(&server));

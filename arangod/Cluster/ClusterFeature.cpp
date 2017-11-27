@@ -24,6 +24,7 @@
 #include "ClusterFeature.h"
 
 #include "Agency/AgencyFeature.h"
+#include "ApplicationFeatures/HttpCommunicationFeature.h"
 #include "Basics/FileUtils.h"
 #include "Basics/VelocyPackHelper.h"
 #include "Basics/files.h"
@@ -60,6 +61,7 @@ ClusterFeature::ClusterFeature(application_features::ApplicationServer* server)
   requiresElevatedPrivileges(false);
   startsAfter("Authentication");
   startsAfter("CacheManager");
+  startsAfter("HttpCommunication");
   startsAfter("Logger");
   startsAfter("WorkMonitor");
   startsAfter("Database");
@@ -261,7 +263,8 @@ void ClusterFeature::prepare() {
 
   if (startClusterComm) {
     // initialize ClusterComm library, must call initialize only once
-    ClusterComm::initialize();
+    auto httpCommunication = ApplicationServer::getFeature<HttpCommunicationFeature>("HttpCommunication");
+    ClusterComm::initialize(httpCommunication->communicator());
   }
 
   // return if cluster is disabled
