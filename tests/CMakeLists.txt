@@ -71,6 +71,18 @@ target_link_libraries(
   arangoserver
 )
 
+if (USE_MAINTAINER_MODE)
+  set(TARGETS
+      arangodbtests
+  )
+  foreach (TARGET ${TARGETS})
+    target_compile_definitions(${TARGET} PUBLIC "-DARANGODB_ENABLE_MAINTAINER_MODE=1")
+    if (CMAKE_COMPILER_IS_GNUCC)
+      target_compile_definitions(${TARGET} PUBLIC "-D_FORTIFY_SOURCE=2")
+    endif()
+  endforeach()
+endif()
+
 target_include_directories(arangodbtests PRIVATE
   ${INCLUDE_DIRECTORIES}
 )

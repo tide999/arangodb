@@ -257,6 +257,16 @@ add_library(${LIB_ARANGO_V8} STATIC
   V8/v8-environment.cpp
 )
 
+
+if (USE_MAINTAINER_MODE)
+  target_compile_definitions(${LIB_ARANGO_V8} PUBLIC "-DARANGODB_ENABLE_MAINTAINER_MODE=1")
+  target_compile_definitions(${LIB_ARANGO} PUBLIC "-DARANGODB_ENABLE_MAINTAINER_MODE=1")
+  if (CMAKE_COMPILER_IS_GNUCC)
+    target_compile_definitions(${LIB_ARANGO_V8} PUBLIC "-D_FORTIFY_SOURCE=2")
+    target_compile_definitions(${LIB_ARANGO} PUBLIC "-D_FORTIFY_SOURCE=2")
+  endif()
+endif()
+
 target_link_libraries(${LIB_ARANGO_V8}
     boost_system
     boost_boost

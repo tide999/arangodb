@@ -370,3 +370,21 @@ install_command_alias(${BIN_ARANGOSH}
   foxx-manager)
 
 install_config(foxx-manager)
+
+if (USE_MAINTAINER_MODE)
+  set(TARGETS
+      ${BIN_ARANGOBENCH}
+      ${BIN_ARANGODUMP}
+      ${BIN_ARANGOEXPORT}
+      ${BIN_ARANGOIMP}
+      ${BIN_ARANGORESTORE}
+      ${BIN_ARANGOSH}
+      ${BIN_ARANGOVPACK}
+  )
+  foreach (TARGET ${TARGETS})
+    target_compile_definitions(${TARGET} PUBLIC "-DARANGODB_ENABLE_MAINTAINER_MODE=1")
+    if (CMAKE_COMPILER_IS_GNUCC)
+      target_compile_definitions(${TARGET} PUBLIC "-D_FORTIFY_SOURCE=2")
+    endif()
+  endforeach()
+endif()

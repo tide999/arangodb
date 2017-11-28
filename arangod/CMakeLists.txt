@@ -461,6 +461,15 @@ add_executable(${BIN_ARANGOD}
   RestServer/arangod.cpp
 )
 
+if (USE_MAINTAINER_MODE)
+  target_compile_definitions(arangoserver PUBLIC "-DARANGODB_ENABLE_MAINTAINER_MODE=1")
+  target_compile_definitions(${BIN_ARANGOD} PUBLIC "-DARANGODB_ENABLE_MAINTAINER_MODE=1")
+  if (CMAKE_COMPILER_IS_GNUCC)
+    target_compile_definitions(arangoserver PUBLIC "-D_FORTIFY_SOURCE=2")
+    target_compile_definitions(${BIN_ARANGOD} PUBLIC "-D_FORTIFY_SOURCE=2")
+  endif()
+endif()
+
 target_link_libraries(${BIN_ARANGOD}
   arangoserver
 )
