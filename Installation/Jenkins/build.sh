@@ -634,9 +634,8 @@ if test -n "${ENTERPRISE_GIT_URL}" ; then
 fi
 
 if test "${DOWNLOAD_STARTER}" == 1; then
-    if test -f ${SRC}/STARTER_REV; then
-        STARTER_REV=$(cat ${SRC}/STARTER_REV)
-    else
+    STARTER_REV=$(grep "STARTER_REV" ../../VERSIONS |sed 's;.*"\([0-9a-zA-Z.]*\)".*;\1;')
+    if test "${STARTER_REV}" == "latest"; then
         # we utilize https://developer.github.com/v3/repos/ to get the newest release:
         STARTER_REV=$(curl -s https://api.github.com/repos/arangodb-helper/arangodb/releases | \
                              grep tag_name | \

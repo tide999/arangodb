@@ -199,10 +199,11 @@ if [ "$LINT" == "1" ]; then
 fi
 
 # we utilize https://developer.github.com/v3/repos/ to get the newest release of the arangodb starter:
-curl -s https://api.github.com/repos/arangodb-helper/arangodb/releases | \
+STARTER_REV=$(curl -s https://api.github.com/repos/arangodb-helper/arangodb/releases | \
                          grep tag_name | \
                          head -n 1 | \
-                         ${SED} -e "s;.*: ;;" -e 's;";;g' -e 's;,;;' > STARTER_REV
+                         ${SED} -e "s;.*: ;;" -e 's;";;g' -e 's;,;;')
+sed -i VERSIONS -e "s;STARTER_REV.*;STARTER_REV \"${STARTER_REV}\";"
 
 git add -f \
     README \
@@ -214,7 +215,7 @@ git add -f \
     lib/Basics/voc-errors.cpp \
     js/common/bootstrap/errors.js \
     CMakeLists.txt \
-    STARTER_REV
+    VERSIONS
 
 if [ "$EXAMPLES" == "1" ];  then
     echo "EXAMPLES"
