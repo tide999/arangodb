@@ -586,7 +586,7 @@ def checkCommitMessages() {
     }
 
     if (buildType == "Auto") {
-        if (env.BRANCH_NAME == "devel" || env.BRANCH_NAME == /^3\\.[0-9]*/) {
+        if (env.BRANCH_NAME == "devel" || env.BRANCH_NAME =~ /^3\\.[0-9]*/) {
             echo "build main branch"
             buildType = "Nightly Test"
         }
