@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # ArangoSync Master 
 
 The _ArangoSync Master_ is responsible for managing all synchronization, creating

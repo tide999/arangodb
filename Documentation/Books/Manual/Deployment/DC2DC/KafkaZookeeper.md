@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # Kafka & Zookeeper 
 
 - How to deploy zookeeper 

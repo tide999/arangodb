@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # When to use it... and when not
 
 The _datacenter to datacenter replication_ is a good solution in all cases where

@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # Monitoring datacenter to datacenter replication
 
 This section includes information related to the monitoring of the _datacenter 

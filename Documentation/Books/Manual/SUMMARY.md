@@ -22,6 +22,7 @@
   * [Architecture](Scalability/Architecture.md)
   * [Data models](Scalability/DataModels.md)
   * [Limitations](Scalability/Limitations.md)
+#   https://@github.com/arangodb/arangosync.git;arangosync;doc-integration/Manual;;/
   * [Datacenter to datacenter replication](Scalability/DC2DC/README.md)
     * [Introduction](Scalability/DC2DC/Introduction.md)
     * [Applicability](Scalability/DC2DC/Applicability.md)
@@ -231,6 +232,9 @@
 #
 * [Security](Security/README.md)
   * [Datacenter to datacenter replication](Security/DC2DC/README.md)
+* [Drivers](Drivers/README.md)
+# https://github.com/arangodb/arangojs.git;arangojs;;README.md;Drivers/js/
+  * [Javascript](Drivers/js/README.md)
 #
 * [Architecture](Architecture/README.md)
   * [Write-ahead log](Architecture/WriteAheadLog.md)

@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # Datacenter to datacenter Security
 
 This section includes information related to the _datacenter to datacenter replication_

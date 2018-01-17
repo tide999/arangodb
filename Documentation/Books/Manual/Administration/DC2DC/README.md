@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # Datacenter to datacenter replication administration
 
 This Section includes information related to the administration of the _datacenter 

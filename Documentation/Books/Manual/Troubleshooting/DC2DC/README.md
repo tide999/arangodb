@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # Troubleshooting datacenter to datacenter replication
 
 The _datacenter to datacenter replication_ is a distributed system with a lot 

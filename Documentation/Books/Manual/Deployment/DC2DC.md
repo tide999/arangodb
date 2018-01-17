@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # Datacenter to datacenter replication deployment 
 
 This chapter describes how to deploy all the components needed for _datacenter to

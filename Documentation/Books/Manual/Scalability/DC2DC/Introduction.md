@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # Introduction
 
 At some point in the grows of a database, there comes a need for replicating it 

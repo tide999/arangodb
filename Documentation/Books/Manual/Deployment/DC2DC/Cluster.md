@@ -1,3 +1,4 @@
+<!-- don't edit here, its from https://@github.com/arangodb/arangosync.git / doc-integration/Manual/ -->
 # ArangoDB cluster 
 
 There are several ways to start an ArangoDB cluster. In this section we will focus
