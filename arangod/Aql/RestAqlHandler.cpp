@@ -113,9 +113,7 @@ void RestAqlHandler::createQueryFromVelocyPack() {
     _queryRegistry->insert(_qId, query.get(), ttl, false);
     query.release();
   } catch (...) {
-    LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "could not keep query in registry";
-    generateError(rest::ResponseCode::BAD, TRI_ERROR_INTERNAL,
-                  "could not keep query in registry");
+    generateError(rest::ResponseCode::BAD, TRI_ERROR_INTERNAL, "could not insert query into registry");
     return;
   }
 
@@ -126,7 +124,7 @@ void RestAqlHandler::createQueryFromVelocyPack() {
                    VPackValue(arangodb::basics::StringUtils::itoa(_qId)));
     answerBody.add("ttl", VPackValue(ttl));
   } catch (arangodb::basics::Exception const& ex) {
-    generateError(rest::ResponseCode::BAD, ex.code());
+    generateError(rest::ResponseCode::BAD, ex.code(), ex.what());
     return;
   } catch (std::exception const& ex) {
     generateError(rest::ResponseCode::BAD, TRI_ERROR_FAILED, ex.what());
@@ -204,7 +202,7 @@ void RestAqlHandler::parseQuery() {
     generateError(rest::ResponseCode::BAD, TRI_ERROR_FAILED, ex.what());
   } catch (...) {
     generateError(rest::ResponseCode::SERVER_ERROR, TRI_ERROR_OUT_OF_MEMORY,
-                  "out of memory");
+                  "out of memory - RestAqlHandler::parseQuery");
   }
 }
 
@@ -268,7 +266,7 @@ void RestAqlHandler::explainQuery() {
     generateError(rest::ResponseCode::BAD, TRI_ERROR_FAILED, ex.what());
   } catch (...) {
     generateError(rest::ResponseCode::SERVER_ERROR, TRI_ERROR_OUT_OF_MEMORY,
-                  "out of memory");
+                  "out of memory - RestAqlHandler::explainQuery");
   }
 }
 
@@ -327,9 +325,7 @@ void RestAqlHandler::createQueryFromString() {
     _queryRegistry->insert(_qId, query.get(), ttl, false);
     query.release();
   } catch (...) {
-    LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "could not keep query in registry";
-    generateError(rest::ResponseCode::BAD, TRI_ERROR_INTERNAL,
-                  "could not keep query in registry");
+    generateError(rest::ResponseCode::BAD, TRI_ERROR_INTERNAL, "could not insert query into registry");
     return;
   }
 
@@ -431,15 +427,13 @@ void RestAqlHandler::useQuery(std::string const& operation,
     }
   } catch (arangodb::basics::Exception const& ex) {
     _queryRegistry->close(_vocbase, _qId);
-    generateError(rest::ResponseCode::SERVER_ERROR, ex.code(),
-                  ex.message());
+    generateError(rest::ResponseCode::SERVER_ERROR, ex.code(), ex.what());
   } catch (std::exception const& ex) {
     _queryRegistry->close(_vocbase, _qId);
 
     LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "failed during use of Query: " << ex.what();
 
-    generateError(rest::ResponseCode::SERVER_ERROR,
-                  TRI_ERROR_HTTP_SERVER_ERROR, ex.what());
+    generateError(rest::ResponseCode::SERVER_ERROR, TRI_ERROR_HTTP_SERVER_ERROR, ex.what());
   } catch (...) {
     _queryRegistry->close(_vocbase, _qId);
     LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "failed during use of Query: Unknown exception occurred";
@@ -535,15 +529,13 @@ void RestAqlHandler::getInfoQuery(std::string const& operation,
   } catch (arangodb::basics::Exception const& ex) {
     _queryRegistry->close(_vocbase, _qId);
     LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "failed during use of query: " << ex.message();
-    generateError(rest::ResponseCode::SERVER_ERROR, ex.code(),
-                  ex.message());
+    generateError(rest::ResponseCode::SERVER_ERROR, ex.code(), ex.what());
   } catch (std::exception const& ex) {
     _queryRegistry->close(_vocbase, _qId);
 
     LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "failed during use of query: " << ex.what();
 
-    generateError(rest::ResponseCode::SERVER_ERROR,
-                  TRI_ERROR_HTTP_SERVER_ERROR, ex.what());
+    generateError(rest::ResponseCode::SERVER_ERROR, TRI_ERROR_HTTP_SERVER_ERROR, ex.what());
   } catch (...) {
     _queryRegistry->close(_vocbase, _qId);
 
@@ -586,16 +578,14 @@ RestStatus RestAqlHandler::execute() {
         createQueryFromString();
       } else {
         LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "Unknown API";
-        generateError(rest::ResponseCode::NOT_FOUND,
-                      TRI_ERROR_HTTP_NOT_FOUND);
+        generateError(rest::ResponseCode::NOT_FOUND, TRI_ERROR_HTTP_NOT_FOUND, "Unknown API");
       }
       break;
     }
     case rest::RequestType::PUT: {
       if (suffixes.size() != 2) {
         LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "unknown PUT API";
-        generateError(rest::ResponseCode::NOT_FOUND,
-                      TRI_ERROR_HTTP_NOT_FOUND);
+        generateError(rest::ResponseCode::NOT_FOUND, TRI_ERROR_HTTP_NOT_FOUND, "unknown PUT API");
       } else {
         useQuery(suffixes[0], suffixes[1]);
       }
@@ -604,8 +594,7 @@ RestStatus RestAqlHandler::execute() {
     case rest::RequestType::GET: {
       if (suffixes.size() != 2) {
         LOG_TOPIC(ERR, arangodb::Logger::FIXME) << "Unknown GET API";
-        generateError(rest::ResponseCode::NOT_FOUND,
-                      TRI_ERROR_HTTP_NOT_FOUND);
+        generateError(rest::ResponseCode::NOT_FOUND, TRI_ERROR_HTTP_NOT_FOUND, "Unknown GET API");
       } else {
         getInfoQuery(suffixes[0], suffixes[1]);
       }
@@ -891,7 +880,7 @@ void RestAqlHandler::handleUseQuery(std::string const& operation, Query* query,
     sendResponse(rest::ResponseCode::OK, answerBuilder.slice(),
                  transactionContext.get());
   } catch (arangodb::basics::Exception const& ex) {
-    generateError(rest::ResponseCode::BAD, ex.code());
+    generateError(rest::ResponseCode::BAD, ex.code(), ex.message());
     return;
   } catch (std::exception const& ex) {
     generateError(rest::ResponseCode::BAD, TRI_ERROR_FAILED, ex.what());

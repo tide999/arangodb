@@ -247,8 +247,8 @@ static void CreateVocBase(v8::FunctionCallbackInfo<v8::Value> const& args,
   bool createWaitsForSyncReplication = cluster->createWaitsForSyncReplication();
   bool enforceReplicationFactor = true;
 
-  if (args.Length() >= 3 && args[args.Length()-1]->IsObject()) {
-    v8::Handle<v8::Object> obj = args[args.Length()-1]->ToObject();
+  if (args.Length() >= 3 && args[args.Length() - 1]->IsObject()) {
+    v8::Handle<v8::Object> obj = args[args.Length() - 1]->ToObject();
     createWaitsForSyncReplication = TRI_GetOptionalBooleanProperty(isolate,
       obj, "waitForSyncReplication", createWaitsForSyncReplication);
 
@@ -324,5 +324,5 @@ void TRI_InitV8IndexCollection(v8::Isolate* isolate,
   TRI_AddMethodVocbase(isolate, rt, TRI_V8_ASCII_STRING(isolate, "lookupIndex"),
                        JS_LookupIndexVocbaseCol);
   TRI_AddMethodVocbase(isolate, rt, TRI_V8_ASCII_STRING(isolate, "getIndexes"),
-                       JS_GetIndexesVocbaseCol, true);
+                       JS_GetIndexesVocbaseCol);
 }

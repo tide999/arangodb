@@ -29,6 +29,7 @@
 #include "Aql/SortCondition.h"
 #include "Basics/AttributeNameParser.h"
 #include "Basics/Exceptions.h"
+#include "Basics/NumberUtils.h"
 #include "Basics/StaticStrings.h"
 #include "Basics/StringUtils.h"
 #include "Basics/VelocyPackHelper.h"
@@ -798,23 +799,21 @@ std::string transaction::Methods::name(TRI_voc_cid_t cid) const {
 /// @brief read all master pointers, using skip and limit.
 /// The resualt guarantees that all documents are contained exactly once
 /// as long as the collection is not modified.
-OperationResult transaction::Methods::any(std::string const& collectionName,
-                                          uint64_t skip, uint64_t limit) {
+OperationResult transaction::Methods::any(std::string const& collectionName) {
   if (_state->isCoordinator()) {
-    return anyCoordinator(collectionName, skip, limit);
+    return anyCoordinator(collectionName);
   }
-  return anyLocal(collectionName, skip, limit);
+  return anyLocal(collectionName);
 }
 
 /// @brief fetches documents in a collection in random order, coordinator
-OperationResult transaction::Methods::anyCoordinator(std::string const&,
-                                                     uint64_t, uint64_t) {
+OperationResult transaction::Methods::anyCoordinator(std::string const&) {
   THROW_ARANGO_EXCEPTION(TRI_ERROR_NOT_IMPLEMENTED);
 }
 
 /// @brief fetches documents in a collection in random order, local
 OperationResult transaction::Methods::anyLocal(
-    std::string const& collectionName, uint64_t skip, uint64_t limit) {
+    std::string const& collectionName) {
   TRI_voc_cid_t cid = resolver()->getCollectionIdLocal(collectionName);
 
   if (cid == 0) {
@@ -832,13 +831,12 @@ OperationResult transaction::Methods::anyLocal(
     return OperationResult(lockResult);
   }
 
-  ManagedDocumentResult mmdr;
   std::unique_ptr<OperationCursor> cursor =
-      indexScan(collectionName, transaction::Methods::CursorType::ANY, &mmdr, false);
+      indexScan(collectionName, transaction::Methods::CursorType::ANY, false);
 
-  cursor->allDocuments([&resultBuilder](LocalDocumentId const& token, VPackSlice slice) {
+  cursor->nextDocument([&resultBuilder](LocalDocumentId const& token, VPackSlice slice) {
     resultBuilder.add(slice);
-  });
+  }, 1);
 
   if (lockResult.is(TRI_ERROR_LOCKED)) {
     Result res = unlockRecursive(cid, AccessMode::Type::READ);
@@ -1396,7 +1394,7 @@ OperationResult transaction::Methods::insertLocal(
 
   auto workForOneDocument = [&](VPackSlice const value) -> Result {
     if (!value.isObject()) {
-      return TRI_ERROR_ARANGO_DOCUMENT_TYPE_INVALID;
+      return Result(TRI_ERROR_ARANGO_DOCUMENT_TYPE_INVALID);
     }
 
     ManagedDocumentResult result;
@@ -1419,16 +1417,18 @@ OperationResult transaction::Methods::insertLocal(
 
     TRI_ASSERT(!result.empty());
 
-    StringRef keyString(transaction::helpers::extractKeyFromDocument(
-        VPackSlice(result.vpack())));
+    if (!options.silent || _state->isDBServer()) {
+      StringRef keyString(transaction::helpers::extractKeyFromDocument(
+          VPackSlice(result.vpack())));
 
-    buildDocumentIdentity(collection, resultBuilder, cid, keyString, revisionId,
-                          0, nullptr, options.returnNew ? &result : nullptr);
+      buildDocumentIdentity(collection, resultBuilder, cid, keyString, revisionId,
+                            0, nullptr, options.returnNew ? &result : nullptr);
+    }
 
-    return TRI_ERROR_NO_ERROR;
+    return Result();
   };
 
-  Result res = TRI_ERROR_NO_ERROR;
+  Result res;
   bool const multiCase = value.isArray();
   std::unordered_map<int, size_t> countErrorCodes;
   if (multiCase) {
@@ -1758,12 +1758,14 @@ OperationResult transaction::Methods::modifyLocal(
     TRI_ASSERT(!result.empty());
     TRI_ASSERT(!previous.empty());
 
-    StringRef key(newVal.get(StaticStrings::KeyString));
-    buildDocumentIdentity(collection, resultBuilder, cid, key,
-                          TRI_ExtractRevisionId(VPackSlice(result.vpack())),
-                          actualRevision,
-                          options.returnOld ? &previous : nullptr,
-                          options.returnNew ? &result : nullptr);
+    if (!options.silent || _state->isDBServer()) {
+      StringRef key(newVal.get(StaticStrings::KeyString));
+      buildDocumentIdentity(collection, resultBuilder, cid, key,
+                            TRI_ExtractRevisionId(VPackSlice(result.vpack())),
+                            actualRevision,
+                            options.returnOld ? &previous : nullptr,
+                            options.returnNew ? &result : nullptr);
+    }
 
     return res;  // must be ok!
   };
@@ -2048,13 +2050,15 @@ OperationResult transaction::Methods::removeLocal(
     }
 
     TRI_ASSERT(!previous.empty());
-    buildDocumentIdentity(collection, resultBuilder, cid, key, actualRevision,
-                          0, options.returnOld ? &previous : nullptr, nullptr);
+    if (!options.silent || _state->isDBServer()) {
+      buildDocumentIdentity(collection, resultBuilder, cid, key, actualRevision,
+                            0, options.returnOld ? &previous : nullptr, nullptr);
+    }
 
-    return Result(TRI_ERROR_NO_ERROR);
+    return Result();
   };
 
-  Result res(TRI_ERROR_NO_ERROR);
+  Result res;
   bool multiCase = value.isArray();
   std::unordered_map<int, size_t> countErrorCodes;
   if (multiCase) {
@@ -2237,9 +2241,8 @@ OperationResult transaction::Methods::allLocal(
     return OperationResult(lockResult);
   }
 
-  ManagedDocumentResult mmdr;
   std::unique_ptr<OperationCursor> cursor =
-      indexScan(collectionName, transaction::Methods::CursorType::ALL, &mmdr, false);
+      indexScan(collectionName, transaction::Methods::CursorType::ALL, false);
 
   if (cursor->fail()) {
     return OperationResult(cursor->code);
@@ -2248,7 +2251,7 @@ OperationResult transaction::Methods::allLocal(
   auto cb = [&resultBuilder](LocalDocumentId const& token, VPackSlice slice) {
     resultBuilder.add(slice);
   };
-  cursor->allDocuments(cb);
+  cursor->allDocuments(cb, 1000);
 
   if (lockResult.is(TRI_ERROR_LOCKED)) {
     Result res = unlockRecursive(cid, AccessMode::Type::READ);
@@ -2715,7 +2718,6 @@ OperationCursor* transaction::Methods::indexScanForCondition(
 /// calling this method
 std::unique_ptr<OperationCursor> transaction::Methods::indexScan(
     std::string const& collectionName, CursorType cursorType,
-    ManagedDocumentResult* mmdr,
     bool reverse) {
   // For now we assume indexId is the iid part of the index.
 
@@ -2739,11 +2741,11 @@ std::unique_ptr<OperationCursor> transaction::Methods::indexScan(
   std::unique_ptr<IndexIterator> iterator = nullptr;
   switch (cursorType) {
     case CursorType::ANY: {
-      iterator = logical->getAnyIterator(this, mmdr);
+      iterator = logical->getAnyIterator(this);
       break;
     }
     case CursorType::ALL: {
-      iterator = logical->getAllIterator(this, mmdr, reverse);
+      iterator = logical->getAllIterator(this, reverse);
       break;
     }
   }
@@ -2808,10 +2810,34 @@ Result transaction::Methods::addCollection(TRI_voc_cid_t cid, char const* name,
   }
 
   if (_state->isEmbeddedTransaction()) {
-    return addCollectionEmbedded(cid, name, type);
+    Result err;
+    auto visitor = [this, name, type, &err](TRI_voc_cid_t cid)->bool {
+      auto res = addCollectionEmbedded(cid, name, type);
+
+      if (err.ok()) {
+        err = res; // track first error
+      }
+
+      return true; // add the remaining collections
+    };
+
+    return resolver()->visitCollections(visitor, cid)
+      ? err : Result(TRI_ERROR_INTERNAL);
   }
 
-  return addCollectionToplevel(cid, name, type);
+  Result err;
+  auto visitor = [this, name, type, &err](TRI_voc_cid_t cid)->bool {
+    auto res = addCollectionToplevel(cid, name, type);
+
+    if (err.ok()) {
+      err = res; // track first error
+    }
+
+    return true; // add the remaining collections
+  };
+
+  return resolver()->visitCollections(visitor, cid)
+    ? err : Result(TRI_ERROR_INTERNAL);
 }
 
 /// @brief add a collection by id, with the name supplied
@@ -3070,10 +3096,9 @@ Result transaction::Methods::resolveId(char const* handle, size_t length,
   }
 
   if (*handle >= '0' && *handle <= '9') {
-    cid = arangodb::basics::StringUtils::uint64(handle, p - handle);
+    cid = NumberUtils::atoi_zero<TRI_voc_cid_t>(handle, p);
   } else {
-    std::string const name(handle, p - handle);
-    cid = resolver()->getCollectionIdCluster(name);
+    cid = resolver()->getCollectionIdCluster(std::string(handle, p - handle));
   }
 
   if (cid == 0) {
@@ -3096,3 +3121,7 @@ void transaction::CallbackInvoker::invoke() noexcept {
     }
   }
 }
+
+// -----------------------------------------------------------------------------
+// --SECTION--                                                       END-OF-FILE
+// -----------------------------------------------------------------------------

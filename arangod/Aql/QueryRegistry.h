@@ -85,12 +85,15 @@ class QueryRegistry {
  private:
   /// @brief a struct for all information regarding one query in the registry
   struct QueryInfo {
+    QueryInfo(QueryId id, Query* query, double ttl, bool isPrepared);
+    ~QueryInfo();
+
     TRI_vocbase_t* _vocbase;  // the vocbase
     QueryId _id;              // id of the query
     Query* _query;            // the actual query pointer
     bool _isOpen;             // flag indicating whether or not the query
                               // is in use
-    bool _prepared;
+    bool _isPrepared;
     double _timeToLive;       // in seconds
     double _expires;          // UNIX UTC timestamp of expiration
   };

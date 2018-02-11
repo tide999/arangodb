@@ -540,7 +540,8 @@ function runArangoImport (options, instanceInfo, what) {
     'file': fs.join(TOP_DIR, what.data),
     'collection': what.coll,
     'type': what.type,
-    'on-duplicate': what.onDuplicate || 'error'
+    'on-duplicate': what.onDuplicate || 'error',
+    'ignore-missing': what.ignoreMissing || false
   };
 
   if (what.skipLines !== undefined) {
@@ -549,6 +550,14 @@ function runArangoImport (options, instanceInfo, what) {
 
   if (what.create !== undefined) {
     args['create-collection'] = what.create;
+  }
+
+  if (what.createDatabase !== undefined) {
+    args['create-database'] = what.createDatabase;
+  }
+
+  if (what.database !== undefined) {
+    args['server.database'] = what.database;
   }
 
   if (what.backslash !== undefined) {

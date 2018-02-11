@@ -418,10 +418,12 @@ rest::ResponseCode GeneralResponse::responseCode(int code) {
     case TRI_ERROR_CLUSTER_SHARD_LEADER_RESIGNED:
     case TRI_ERROR_CLUSTER_LEADERSHIP_CHALLENGE_ONGOING:
     case TRI_ERROR_CLUSTER_NOT_LEADER:
+    case TRI_ERROR_SHUTTING_DOWN:
       return ResponseCode::SERVICE_UNAVAILABLE;
 
     case TRI_ERROR_CLUSTER_UNSUPPORTED:
     case TRI_ERROR_NOT_IMPLEMENTED:
+    case TRI_ERROR_ONLY_ENTERPRISE:
       return ResponseCode::NOT_IMPLEMENTED;
 
     default:
@@ -431,7 +433,6 @@ rest::ResponseCode GeneralResponse::responseCode(int code) {
 
 GeneralResponse::GeneralResponse(ResponseCode responseCode)
     : _responseCode(responseCode),
-      _headers(),
       _contentType(ContentType::UNSET),
       _connectionType(ConnectionType::C_NONE),
       _options(velocypack::Options::Defaults),
