@@ -1226,8 +1226,8 @@ int createDocumentOnCoordinator(
 
 int deleteDocumentOnCoordinator(
     std::string const& dbname, std::string const& collname,
-    VPackSlice const slice, arangodb::OperationOptions const& options,
-    arangodb::rest::ResponseCode& responseCode,
+    VPackSlice const slice, OperationOptions const& options,
+    VPackSlice const pattern, arangodb::rest::ResponseCode& responseCode,
     std::unordered_map<int, size_t>& errorCounter,
     std::shared_ptr<arangodb::velocypack::Builder>& resultBody) {
   // Set a few variables needed for our work:
@@ -2264,13 +2264,11 @@ int getFilteredEdgesOnCoordinator(
 ////////////////////////////////////////////////////////////////////////////////
 
 int modifyDocumentOnCoordinator(
-    std::string const& dbname, std::string const& collname,
-    VPackSlice const& slice, arangodb::OperationOptions const& options,
-    bool isPatch,
-    std::unique_ptr<std::unordered_map<std::string, std::string>>& headers,
-    arangodb::rest::ResponseCode& responseCode,
-    std::unordered_map<int, size_t>& errorCounter,
-    std::shared_ptr<VPackBuilder>& resultBody) {
+  std::string const &dbname, std::string const &collname, arangodb::velocypack::Slice const &slice,
+  OperationOptions const &options, VPackSlice const& pattern, bool isPatch,
+  std::unique_ptr<std::unordered_map<std::string, std::string>> &headers, arangodb::rest::ResponseCode &responseCode,
+  std::unordered_map<int, size_t> &errorCounter, std::shared_ptr<arangodb::velocypack::Builder> &resultBody
+) {
   // Set a few variables needed for our work:
   ClusterInfo* ci = ClusterInfo::instance();
   auto cc = ClusterComm::instance();
