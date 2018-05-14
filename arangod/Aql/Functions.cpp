@@ -5158,7 +5158,6 @@ AqlValue Functions::Matches(arangodb::aql::Query* query,
 
   auto options = trx->transactionContextPtr()->getVPackOptions();
 
-  bool foundMatch;
   int32_t idx = -1;
 
   for (auto const& example : VPackArrayIterator(examples)) {
@@ -5169,26 +5168,7 @@ AqlValue Functions::Matches(arangodb::aql::Query* query,
       continue;
     }
 
-    foundMatch = true;
-
-    for (auto const& it : VPackObjectIterator(example, true)) {
-      std::string key = it.key.copyString();
-
-      if (it.value.isNull() && !docSlice.hasKey(key)) {
-        continue;
-      }
-
-      if (!docSlice.hasKey(key) ||
-          // compare inner content
-          basics::VelocyPackHelper::compare(docSlice.get(key), it.value, false,
-                                            options, &docSlice,
-                                            &example) != 0) {
-        foundMatch = false;
-        break;
-      }
-    }
-
-    if (foundMatch) {
+    if (matches(docSlice, options, example)) {
       if (retIdx) {
         return AqlValue(AqlValueHintInt(idx));
       } else {
@@ -6506,4 +6486,25 @@ AqlValue Functions::Fail(arangodb::aql::Query* query, transaction::Methods* trx,
   AqlValueMaterializer materializer(trx);
   VPackSlice str = materializer.slice(value, false);
   THROW_ARANGO_EXCEPTION_MESSAGE(TRI_ERROR_QUERY_FAIL_CALLED, str.copyString());
+}
+
+bool aql::matches(VPackSlice const& object, VPackOptions const* options,
+                  VPackSlice const& exampleObject) {
+  for (auto const& it : VPackObjectIterator(exampleObject, true)) {
+    string key = it.key.copyString();
+
+    if (it.value.isNull() && !object.hasKey(key)) {
+      continue;
+    }
+
+    if (!object.hasKey(key) ||
+        // compare inner content
+        basics::VelocyPackHelper::compare(object.get(key), it.value, false,
+                                          options, &object,
+                                          &exampleObject) != 0) {
+      return false;
+    }
+  }
+
+  return true;
 }

@@ -503,6 +503,8 @@ struct Functions {
                          VPackFunctionParameters const&);
 };
 
+bool matches(VPackSlice const& object, VPackOptions const* options,
+             VPackSlice const& exampleObject);
 }
 }
 
