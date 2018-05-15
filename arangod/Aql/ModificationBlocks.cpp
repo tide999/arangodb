@@ -685,6 +685,8 @@ AqlItemBlock* UpdateBlock::work(std::vector<AqlItemBlock*>& blocks) {
             TRI_ASSERT(searchExpression.isString() || searchExpression.isObject());
             if (searchExpression.isObject()) {
               patternBuilder.add(searchExpression.slice());
+            } else {
+              patternBuilder.add(VPackSlice::noneSlice());
             }
           }
           else {
@@ -1165,6 +1167,9 @@ AqlItemBlock* ReplaceBlock::work(std::vector<AqlItemBlock*>& blocks) {
             TRI_ASSERT(searchExpression.isString() || searchExpression.isObject());
             if (searchExpression.isObject()) {
               patternBuilder.add(searchExpression.slice());
+            }
+            else {
+              patternBuilder.add(VPackSlice::noneSlice());
             }
           } else {
             // Use the original slice for updating
